@@ -29,11 +29,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Vendor } from "@/types";
+import { QueryObj, Vendor } from "@/types";
 import { toast } from "@/hooks/use-toast";
 import {
-  IVendor,
-  QueryObj,
   useCreateVendor,
   useDeleteVendor,
   useUpdateVendor,
@@ -50,10 +48,10 @@ export default function VendorList() {
   const [limit, setLimit] = useState(10);
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingVendor, setEditingVendor] = useState<IVendor | null>(null);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [vendorToDelete, setVendorToDelete] = useState<IVendor | null>(null);
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -131,7 +129,7 @@ export default function VendorList() {
     }
   };
 
-  const handleEdit = (vendor: IVendor) => {
+  const handleEdit = (vendor: Vendor) => {
     setEditingVendor(vendor);
     setFormData({
       name: vendor.name,
@@ -142,7 +140,7 @@ export default function VendorList() {
     setIsDialogOpen(true);
   };
 
-  const confirmDelete = (vendor: IVendor) => {
+  const confirmDelete = (vendor: Vendor) => {
     setVendorToDelete(vendor);
     setDeleteDialogOpen(true);
   };
@@ -288,7 +286,6 @@ export default function VendorList() {
       </div>
 
       {/* Vendor Grid */}
-      {/* Vendor Grid */}
       {loading ? (
         // Loading State
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -318,7 +315,7 @@ export default function VendorList() {
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {vendors?.map((vendor: IVendor) => (
+          {vendors?.map((vendor: Vendor) => (
             <div
               key={vendor._id}
               className="group rounded-xl border bg-card p-5 shadow-sm transition-all duration-200 hover:shadow-md"

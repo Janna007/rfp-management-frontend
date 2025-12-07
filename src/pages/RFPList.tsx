@@ -5,36 +5,61 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/common/PageHeader";
 import { EmptyState } from "@/components/common/EmptyState";
-import { mockRFPs } from "@/store/mockData";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { QueryObj } from "@/types";
+import { useRfps } from "@/services/rfp.service";
 
 export default function RFPList() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
-  const filteredRFPs = mockRFPs.filter(
-    (rfp) =>
-      rfp.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      rfp.description.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  //QUERYOBJ
+  const queryObj = useMemo(() => {
+    const obj: QueryObj = { page: page?.toString(), limit: limit?.toString() };
+
+    if (searchQuery) {
+      obj.search = searchQuery;
+    }
+
+    return obj;
+  }, [page, limit, searchQuery]);
+
+  //DATA
+  const { data: rfpData, isLoading, isFetching } = useRfps(queryObj);
+  const rfps = rfpData?.data;
+
+  //LOADING
+  const loading = isLoading || isFetching;
 
   const statusBadgeVariant = (status: string) => {
     switch (status) {
-      case "draft": return "draft";
-      case "sent": return "sent";
-      case "receiving_responses": return "receiving";
-      case "completed": return "completed";
-      default: return "default";
+      case "draft":
+        return "draft";
+      case "sent":
+        return "sent";
+      case "receiving_responses":
+        return "receiving";
+      case "completed":
+        return "completed";
+      default:
+        return "default";
     }
   };
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case "draft": return "Draft";
-      case "sent": return "Sent";
-      case "receiving_responses": return "Receiving";
-      case "completed": return "Completed";
-      default: return status;
+      case "draft":
+        return "Draft";
+      case "sent":
+        return "Sent";
+      case "receiving_responses":
+        return "Receiving";
+      case "completed":
+        return "Completed";
+      default:
+        return status;
     }
   };
 
@@ -69,17 +94,19 @@ export default function RFPList() {
         </Button>
       </div>
 
+
+
       {/* RFP List */}
-      {filteredRFPs.length === 0 ? (
+      {!rfpData || rfpData?.total === 0 ? (
         <EmptyState
           icon={Search}
           title="No RFPs found"
           description="Create your first RFP to get started with the procurement process."
-          action={{ label: "Create RFP", to: "/rfps/create" }}
+          action={{ label: "Create RFP", to: "/rfps/create", func: () => null }}
         />
       ) : (
         <div className="space-y-4">
-          {filteredRFPs.map((rfp) => (
+          {rfps?.map((rfp) => (
             <Link
               key={rfp._id}
               to={`/rfps/${rfp._id}`}
@@ -104,15 +131,30 @@ export default function RFPList() {
               <div className="mt-4 flex flex-wrap items-center gap-6 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <DollarSign className="h-4 w-4" />
-                  <span>Budget: <span className="font-medium text-foreground">${rfp.budget.toLocaleString()}</span></span>
+                  <span>
+                    Budget:{" "}
+                    <span className="font-medium text-foreground">
+                      ${rfp.budget.toLocaleString()}
+                    </span>
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>Due: <span className="font-medium text-foreground">{format(new Date(rfp.deliveryDeadline), "MMM d, yyyy")}</span></span>
+                  <span>
+                    Due:{" "}
+                    <span className="font-medium text-foreground">
+                      {format(new Date(rfp.deliveryDeadline), "MMM d, yyyy")}
+                    </span>
+                  </span>
                 </div>
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="h-4 w-4" />
-                  <span><span className="font-medium text-foreground">{rfp.selectedVendors.length}</span> vendors selected</span>
+                  <span>
+                    <span className="font-medium text-foreground">
+                      {rfp.selectedVendors.length}
+                    </span>{" "}
+                    vendors selected
+                  </span>
                 </div>
               </div>
 

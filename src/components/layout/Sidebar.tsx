@@ -15,8 +15,8 @@ const navItems = [
   { to: "/rfps", icon: FileText, label: "RFPs" },
   { to: "/rfps/create", icon: PlusCircle, label: "Create RFP" },
   { to: "/vendors", icon: Users, label: "Vendors" },
-  { to: "/proposals", icon: Inbox, label: "Proposals" },
-  { to: "/compare", icon: BarChart3, label: "Compare" },
+  // { to: "/proposals", icon: Inbox, label: "Proposals" },
+  // { to: "/compare", icon: BarChart3, label: "Compare" },
 ];
 
 export function Sidebar() {

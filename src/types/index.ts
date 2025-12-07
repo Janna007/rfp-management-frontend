@@ -8,6 +8,12 @@ export interface Vendor {
   updatedAt: string;
 }
 
+export type QueryObj = {
+  limit?: string;
+  page?: string;
+  search?: string;
+};
+
 export interface RFPItem {
   name: string;
   quantity: number;
@@ -23,8 +29,9 @@ export interface RFP {
   deliveryDeadline: string;
   paymentTerms?: string;
   warrantyRequirement?: string;
-  selectedVendors: string[] | Vendor[];
-  status: 'draft' | 'sent' | 'receiving_responses' | 'completed';
+  selectedVendors: string[];
+  vendors?: Vendor[]
+  status: "draft" | "sent" | "receiving_responses" | "completed";
   createdAt: string;
   updatedAt: string;
 }
@@ -46,25 +53,36 @@ export interface Proposal {
     bodyText?: string;
     bodyHtml?: string;
   };
-  structuredData: {
+
     items: ProposalItem[];
     totalPrice: number;
     deliveryTime?: string;
     paymentTerms?: string;
     warranty?: string;
     additionalTerms?: string;
-  };
-  aiScore: number;
+   aiScore: number;
   aiSummary?: string;
   completeness: number;
-  status: 'received' | 'parsed' | 'evaluated';
+  status: "received" | "parsed" | "evaluated";
   createdAt: string;
   updatedAt: string;
+  vendor?:Vendor;
+  rfp:RFP
 }
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
   timestamp: Date;
+}
+
+export interface ParsedRFP {
+  title: string;
+  description: string;
+  items: RFPItem[];
+  budget: number;
+  deliveryDeadline: string;
+  paymentTerms: string;
+  warrantyRequirement: string;
 }

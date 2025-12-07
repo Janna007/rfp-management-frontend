@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useSearchParams, Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Sparkles,
@@ -22,27 +22,46 @@ import {
 } from "@/components/ui/select";
 import { mockProposals, mockVendors, mockRFPs } from "@/store/mockData";
 import { cn } from "@/lib/utils";
+import { useCompareProposals, useProposals } from "@/services/proposal.service";
 
 export default function CompareProposals() {
-  const [searchParams] = useSearchParams();
-  const rfpIdFromUrl = searchParams.get("rfp");
+  const { id } = useParams();
 
-  const [selectedRfpId, setSelectedRfpId] = useState(
-    rfpIdFromUrl || mockRFPs[0]?._id || ""
-  );
+  //DATA
+  const { data: proposalsData } = useProposals(id, !!id);
+  const rfpProposals = proposalsData?.data;
 
-  const selectedRfp = mockRFPs.find((r) => r._id === selectedRfpId);
-  const rfpProposals = mockProposals.filter((p) => p.rfpId === selectedRfpId);
+  //MUTATIONS
+  const { mutateAsync: compareProposals } = useCompareProposals();
 
-  const bestProposal = rfpProposals.reduce(
-    (best, current) =>
-      !best || current.aiScore > best.aiScore ? current : best,
-    rfpProposals[0]
-  );
+  const [compareResult, setCompareResult] = useState(null);
 
-  const lowestPrice = Math.min(
-    ...rfpProposals.map((p) => p.structuredData.totalPrice)
-  );
+  useEffect(() => {
+    if (!id) return;
+
+    async function runComparison() {
+      const result = await compareProposals(id);
+      setCompareResult(result);
+    }
+
+    runComparison();
+  }, [id, compareProposals]);
+
+  // const [selectedRfpId, setSelectedRfpId] = useState(
+  //   rfpIdFromUrl || mockRFPs[0]?._id || ""
+  // );
+
+  // const selectedRfp = mockRFPs.find((r) => r._id === selectedRfpId);
+  
+  // const bestProposal = rfpProposals.reduce(
+  //   (best, current) =>
+  //     !best || current.aiScore > best.aiScore ? current : best,
+  //   rfpProposals[0]
+  // );
+
+  // const lowestPrice = Math.min(
+  //   ...rfpProposals.map((p) => p.totalPrice)
+  // );
 
   return (
     <div className="animate-fade-in">
@@ -58,25 +77,25 @@ export default function CompareProposals() {
       <PageHeader
         title="Compare Proposals"
         description="AI-powered comparison and recommendation"
-        actions={
-          <Select value={selectedRfpId} onValueChange={setSelectedRfpId}>
-            <SelectTrigger className="w-[300px]">
-              <SelectValue placeholder="Select RFP" />
-            </SelectTrigger>
-            <SelectContent>
-              {mockRFPs
-                .filter((r) => mockProposals.some((p) => p.rfpId === r._id))
-                .map((rfp) => (
-                  <SelectItem key={rfp._id} value={rfp._id}>
-                    {rfp.title}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        }
+        // actions={
+        //   <Select value={selectedRfpId} onValueChange={setSelectedRfpId}>
+        //     <SelectTrigger className="w-[300px]">
+        //       <SelectValue placeholder="Select RFP" />
+        //     </SelectTrigger>
+        //     <SelectContent>
+        //       {mockRFPs
+        //         .filter((r) => mockProposals.some((p) => p.rfpId === r._id))
+        //         .map((rfp) => (
+        //           <SelectItem key={rfp._id} value={rfp._id}>
+        //             {rfp.title}
+        //           </SelectItem>
+        //         ))}
+        //     </SelectContent>
+        //   </Select>
+        // }
       />
 
-      {rfpProposals.length === 0 ? (
+      {rfpProposals && rfpProposals?.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             No proposals to compare for this RFP.
@@ -85,7 +104,7 @@ export default function CompareProposals() {
       ) : (
         <>
           {/* AI Recommendation Banner */}
-          {bestProposal && (
+          {compareResult && (
             <div className="mb-8 rounded-xl border-2 border-accent bg-gradient-to-r from-accent/5 via-accent/10 to-accent/5 p-6">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full gradient-ai shadow-glow">
@@ -101,11 +120,10 @@ export default function CompareProposals() {
                     coverage, we recommend{" "}
                     <span className="font-semibold text-foreground">
                       {
-                        mockVendors.find((v) => v._id === bestProposal.vendorId)
-                          ?.name
+                        compareResult?.recommendation?.bestVendor
                       }
                     </span>{" "}
-                    with an AI score of {bestProposal.aiScore}/100.
+                    {/* with an AI score of {compareResult.aiScore}/100. */}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-4 text-sm">
                     <div className="flex items-center gap-1 text-success">
@@ -129,35 +147,38 @@ export default function CompareProposals() {
           {/* Comparison Grid */}
           <div className="overflow-x-auto">
             <div className="inline-flex gap-4 min-w-full pb-4">
-              {rfpProposals.map((proposal) => {
-                const vendor = mockVendors.find(
-                  (v) => v._id === proposal.vendorId
-                );
-                const isBest = proposal._id === bestProposal?._id;
-                const isLowestPrice =
-                  proposal.structuredData.totalPrice === lowestPrice;
-                const budgetDiff = selectedRfp
-                  ? ((proposal.structuredData.totalPrice - selectedRfp.budget) /
-                      selectedRfp.budget) *
-                    100
-                  : 0;
+              {rfpProposals && rfpProposals.map((proposal) => {
+                
+                // const isBest = proposal._id === compareResult?._id;
+                // const isLowestPrice =
+                //   proposal.totalPrice === lowestPrice;
+                // const budgetDiff = selectedRfp
+                //   ? ((proposal.totalPrice - selectedRfp.budget) /
+                //       selectedRfp.budget) *
+                //     100
+                //   : 0;
+
+                let isBest=true
 
                 return (
                   <div
                     key={proposal._id}
                     className={cn(
                       "flex-shrink-0 w-[340px] rounded-xl border bg-card shadow-sm transition-all duration-200",
-                      isBest && "border-accent ring-2 ring-accent/20"
+                       isBest && 
+                      "border-accent ring-2 ring-accent/20"
                     )}
                   >
                     {/* Header */}
                     <div
-                      className={cn("p-5 border-b", isBest && "bg-accent/5")}
+                      className={cn("p-5 border-b", 
+                        isBest &&
+                         "bg-accent/5")}
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">{vendor?.name}</h3>
+                            <h3 className="font-semibold">{proposal?.vendor[0]?.name}</h3>
                             {isBest && (
                               <Badge variant="accent" className="text-xs">
                                 <Trophy className="mr-1 h-3 w-3" />
@@ -166,7 +187,7 @@ export default function CompareProposals() {
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground mt-1">
-                            {vendor?.email}
+                            {proposal.vendor[0]?.email}
                           </p>
                         </div>
                       </div>
@@ -217,16 +238,16 @@ export default function CompareProposals() {
                             Total Price
                           </span>
                         </div>
-                        {isLowestPrice && (
+                        {/* {isLowestPrice && (
                           <Badge variant="success" className="text-xs">
                             Lowest
                           </Badge>
-                        )}
+                        )} */}
                       </div>
                       <p className="text-2xl font-bold mt-1">
-                        ${proposal.structuredData.totalPrice.toLocaleString()}
+                        ${proposal.totalPrice.toLocaleString()}
                       </p>
-                      <p
+                      {/* <p
                         className={cn(
                           "text-sm mt-1",
                           budgetDiff <= 0 ? "text-success" : "text-warning"
@@ -243,7 +264,7 @@ export default function CompareProposals() {
                             {budgetDiff.toFixed(0)}% over budget
                           </span>
                         )}
-                      </p>
+                      </p> */}
                     </div>
 
                     {/* Details */}
@@ -255,7 +276,7 @@ export default function CompareProposals() {
                             Delivery
                           </p>
                           <p className="text-sm font-medium">
-                            {proposal.structuredData.deliveryTime}
+                            {proposal.deliveryTime}
                           </p>
                         </div>
                       </div>
@@ -267,7 +288,7 @@ export default function CompareProposals() {
                             Warranty
                           </p>
                           <p className="text-sm font-medium">
-                            {proposal.structuredData.warranty}
+                            {proposal.warranty}
                           </p>
                         </div>
                       </div>
@@ -279,7 +300,7 @@ export default function CompareProposals() {
                             Payment Terms
                           </p>
                           <p className="text-sm font-medium">
-                            {proposal.structuredData.paymentTerms}
+                            {proposal.paymentTerms}
                           </p>
                         </div>
                       </div>
@@ -291,7 +312,7 @@ export default function CompareProposals() {
                         Items
                       </p>
                       <div className="space-y-2">
-                        {proposal.structuredData.items.map((item, idx) => (
+                        {proposal.items.map((item, idx) => (
                           <div
                             key={idx}
                             className="flex items-center justify-between text-sm"

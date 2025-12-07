@@ -29,8 +29,8 @@ const App = () => (
             <Route path="/rfps/create" element={<CreateRFP />} />
             <Route path="/rfps/:id" element={<RFPDetail />} />
             <Route path="/vendors" element={<VendorList />} />
-            <Route path="/proposals" element={<ProposalList />} />
-            <Route path="/compare" element={<CompareProposals />} />
+            <Route path="/proposals/:id" element={<ProposalList />} />
+            <Route path="/compare/:id" element={<CompareProposals />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

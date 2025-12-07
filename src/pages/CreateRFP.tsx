@@ -5,40 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/common/PageHeader";
 import { Badge } from "@/components/ui/badge";
-import { ChatMessage, RFPItem } from "@/types";
+import { ChatMessage, ParsedRFP } from "@/types";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-
-interface ParsedRFP {
-  title: string;
-  description: string;
-  items: RFPItem[];
-  budget: number;
-  deliveryDeadline: string;
-  paymentTerms: string;
-  warrantyRequirement: string;
-}
+import { useCreateRfp, useParseRfpInput } from "@/services/rfp.service";
 
 const examplePrompts = [
-  "I need to procure laptops and monitors for our new office. Budget is $50,000 total. Need delivery within 30 days.",
-  "Looking for office furniture - 20 ergonomic chairs and 10 standing desks. Budget around $15,000.",
-  "We need cloud hosting services for our startup. Looking for enterprise tier with 99.9% uptime guarantee.",
+  `I need to procure laptops and monitors for our new office.
+Budget is $50,000 total. Need delivery within 30 days. We need 20 laptops with 16GB RAM and 15
+monitors 27-inch. Payment terms should be net 30, and we need at least 1 year warranty.`,
+  `I need to procure 50 ergonomic office chairs and 10 standing desks for our new workspace. Budget is $35,000 total. Delivery required within 20 days. Chairs must support at least 120kg and have 3-year warranty. Payment terms: net 45.`,
+  `We need to purchase networking equipment for our IT upgrade. Budget is $80,000. Requirements: 5 managed switches, 10 access points, 1 firewall appliance. Delivery within 15 days. Vendor must provide installation support and 1-year maintenance. Payment terms: 30% upfront, 70% on delivery.`,
 ];
 
 export default function CreateRFP() {
   const navigate = useNavigate();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  //STATES
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
       role: "assistant",
-      content: "Hi! I'm your AI assistant for creating RFPs. Describe what you need to procure, including details like quantities, specifications, budget, and timeline. I'll help structure it into a professional RFP.",
+      content:
+        "Hi! I'm your AI assistant for creating RFPs. Describe what you need to procure, including details like quantities, specifications, budget, and timeline. I'll help structure it into a professional RFP.",
       timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const [parsedRFP, setParsedRFP] = useState<ParsedRFP | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  //MUTATION
+  const { mutateAsync: parseUserInput, isPending: isParsingInputPending } =
+    useParseRfpInput();
+  const { mutateAsync: createRfp } = useCreateRfp();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,71 +48,8 @@ export default function CreateRFP() {
     scrollToBottom();
   }, [messages]);
 
-  const parseUserInput = (input: string): ParsedRFP => {
-    // Simulate AI parsing - in real app, this would call your backend
-    const lowerInput = input.toLowerCase();
-    
-    // Extract budget
-    const budgetMatch = input.match(/\$?([\d,]+)/);
-    const budget = budgetMatch ? parseInt(budgetMatch[1].replace(",", "")) : 10000;
-
-    // Extract delivery timeline
-    const daysMatch = input.match(/(\d+)\s*days?/i);
-    const weeks = input.match(/(\d+)\s*weeks?/i);
-    let deliveryDays = 30;
-    if (daysMatch) deliveryDays = parseInt(daysMatch[1]);
-    else if (weeks) deliveryDays = parseInt(weeks[1]) * 7;
-
-    const deliveryDate = new Date();
-    deliveryDate.setDate(deliveryDate.getDate() + deliveryDays);
-
-    // Extract items
-    const items: RFPItem[] = [];
-    const quantityMatches = input.matchAll(/(\d+)\s+([a-zA-Z]+(?:\s+[a-zA-Z]+)?)/g);
-    for (const match of quantityMatches) {
-      const quantity = parseInt(match[1]);
-      const name = match[2];
-      if (quantity > 0 && !["days", "weeks", "months", "years", "year", "gb", "inch"].includes(name.toLowerCase())) {
-        items.push({
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          quantity,
-          specifications: "",
-        });
-      }
-    }
-
-    if (items.length === 0) {
-      items.push({ name: "Item", quantity: 1, specifications: "As specified" });
-    }
-
-    // Extract specs
-    const ramMatch = input.match(/(\d+)\s*GB\s*RAM/i);
-    const sizeMatch = input.match(/(\d+)[- ]?inch/i);
-    
-    if (ramMatch && items.length > 0) {
-      items[0].specifications = `${ramMatch[1]}GB RAM`;
-    }
-    if (sizeMatch && items.length > 1) {
-      items[1].specifications = `${sizeMatch[1]}-inch`;
-    }
-
-    // Generate title
-    const itemNames = items.map(i => i.name).join(" & ");
-    const title = `${itemNames} Procurement`;
-
-    return {
-      title,
-      description: input,
-      items,
-      budget,
-      deliveryDeadline: deliveryDate.toISOString(),
-      paymentTerms: lowerInput.includes("net 30") ? "Net 30" : lowerInput.includes("net 45") ? "Net 45" : "Net 30",
-      warrantyRequirement: lowerInput.includes("warranty") ? "As specified" : "1 year minimum",
-    };
-  };
-
   const handleSend = async () => {
-    if (!inputValue.trim() || isProcessing) return;
+    if (!inputValue.trim() || isParsingInputPending) return;
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -123,32 +60,47 @@ export default function CreateRFP() {
 
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
-    setIsProcessing(true);
 
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    const parsed = parseUserInput(inputValue);
+    const res = await parseUserInput({ naturalLanguageText: inputValue });
+    const parsed = res?.data?.data;
     setParsedRFP(parsed);
 
     const assistantMessage: ChatMessage = {
       id: (Date.now() + 1).toString(),
       role: "assistant",
-      content: `I've analyzed your requirements and created a structured RFP. Here's what I understood:\n\n**${parsed.title}**\n\n• **Items:** ${parsed.items.map(i => `${i.quantity}x ${i.name}`).join(", ")}\n• **Budget:** $${parsed.budget.toLocaleString()}\n• **Delivery:** ${new Date(parsed.deliveryDeadline).toLocaleDateString()}\n• **Payment Terms:** ${parsed.paymentTerms}\n• **Warranty:** ${parsed.warrantyRequirement}\n\nWould you like to proceed with this RFP, or would you like to modify any details?`,
+      content: `I've analyzed your requirements and created a structured RFP. Here's what I understood:\n\n**${
+        parsed.title
+      }**\n\n• **Items:** ${parsed?.items
+        .map((i) => `${i?.quantity ? i?.quantity : 0}x ${i?.name}`)
+        .join(
+          ", "
+        )}\n• **Budget:** $${parsed.budget.toLocaleString()}\n• **Delivery:** ${new Date(
+        parsed.deliveryDeadline
+      ).toLocaleDateString()}\n• **Payment Terms:** ${
+        parsed.paymentTerms
+      }\n• **Warranty:** ${
+        parsed.warrantyRequirement
+      }\n\nWould you like to proceed with this RFP, or would you like to modify any details?`,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, assistantMessage]);
-    setIsProcessing(false);
   };
 
-  const handleCreateRFP = () => {
-    if (parsedRFP) {
+  const handleCreateRFP = async () => {
+    try {
+      const resp = await createRfp({ parsedRFP });
       toast({
         title: "RFP Created Successfully",
-        description: `"${parsedRFP.title}" has been created and saved as a draft.`,
+        description: resp?.data?.message,
       });
       navigate("/rfps");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -165,7 +117,7 @@ export default function CreateRFP() {
           <div className="rounded-xl border bg-card shadow-sm">
             {/* Messages */}
             <div className="h-[500px] overflow-y-auto p-6 space-y-4">
-              {messages.map((message) => (
+              {messages?.map((message) => (
                 <div
                   key={message.id}
                   className={cn(
@@ -195,11 +147,13 @@ export default function CreateRFP() {
                         : "bg-primary text-primary-foreground"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
                   </div>
                 </div>
               ))}
-              {isProcessing && (
+              {isParsingInputPending && (
                 <div className="flex gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full gradient-ai">
                     <Bot className="h-4 w-4 text-accent-foreground" />
@@ -207,7 +161,9 @@ export default function CreateRFP() {
                   <div className="rounded-2xl bg-secondary px-4 py-3">
                     <div className="flex items-center gap-2">
                       <Loader2 className="h-4 w-4 animate-spin text-accent" />
-                      <span className="text-sm text-muted-foreground">Analyzing your requirements...</span>
+                      <span className="text-sm text-muted-foreground">
+                        Analyzing your requirements...
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -225,7 +181,10 @@ export default function CreateRFP() {
                   onKeyDown={(e) => e.key === "Enter" && handleSend()}
                   className="flex-1"
                 />
-                <Button onClick={handleSend} disabled={isProcessing || !inputValue.trim()}>
+                <Button
+                  onClick={handleSend}
+                  disabled={isParsingInputPending || !inputValue.trim()}
+                >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
@@ -233,7 +192,9 @@ export default function CreateRFP() {
               {/* Example Prompts */}
               {messages.length === 1 && (
                 <div className="mt-4">
-                  <p className="text-xs text-muted-foreground mb-2">Try an example:</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Try an example:
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {examplePrompts.map((prompt, idx) => (
                       <button
@@ -262,15 +223,22 @@ export default function CreateRFP() {
             {parsedRFP ? (
               <div className="space-y-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Title</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    Title
+                  </p>
                   <p className="font-medium">{parsedRFP.title}</p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Items</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                    Items
+                  </p>
                   <div className="space-y-2">
                     {parsedRFP.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between text-sm bg-secondary rounded-lg px-3 py-2">
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between text-sm bg-secondary rounded-lg px-3 py-2"
+                      >
                         <span>{item.name}</span>
                         <Badge variant="secondary">{item.quantity}</Badge>
                       </div>
@@ -280,27 +248,45 @@ export default function CreateRFP() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Budget</p>
-                    <p className="font-medium text-accent">${parsedRFP.budget.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Budget
+                    </p>
+                    <p className="font-medium text-accent">
+                      ${parsedRFP.budget.toLocaleString()}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Delivery</p>
-                    <p className="font-medium">{new Date(parsedRFP.deliveryDeadline).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Delivery
+                    </p>
+                    <p className="font-medium">
+                      {new Date(
+                        parsedRFP.deliveryDeadline
+                      ).toLocaleDateString()}
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Payment</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Payment
+                    </p>
                     <p className="text-sm">{parsedRFP.paymentTerms}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Warranty</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                      Warranty
+                    </p>
                     <p className="text-sm">{parsedRFP.warrantyRequirement}</p>
                   </div>
                 </div>
 
-                <Button onClick={handleCreateRFP} className="w-full" variant="accent">
+                <Button
+                  onClick={handleCreateRFP}
+                  className="w-full"
+                  variant="accent"
+                >
                   <CheckCircle2 className="mr-2 h-4 w-4" />
                   Create RFP
                 </Button>
@@ -309,7 +295,8 @@ export default function CreateRFP() {
               <div className="text-center py-8 text-muted-foreground">
                 <Sparkles className="h-8 w-8 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">
-                  Start describing your procurement needs and I'll generate a structured RFP for you.
+                  Start describing your procurement needs and I'll generate a
+                  structured RFP for you.
                 </p>
               </div>
             )}

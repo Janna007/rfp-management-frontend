@@ -12,19 +12,34 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/common/PageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
-import { mockRFPs, mockVendors, mockProposals } from "@/store/mockData";
+import { mockVendors, mockProposals } from "@/store/mockData";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useRfp, useSendRfpToVendors } from "@/services/rfp.service";
+import { Vendor } from "@/types";
+import { useVendors } from "@/services/vendor.service";
+import { useCheckProposals, useProposals } from "@/services/proposal.service";
 
 export default function RFPDetail() {
   const { id } = useParams();
-  const rfp = mockRFPs.find((r) => r._id === id);
-  const [selectedVendors, setSelectedVendors] = useState<string[]>(
-    (rfp?.selectedVendors as string[]) || []
-  );
+
+  //DATA
+  const { data: rfpData } = useRfp(id, !!id);
+  const rfp = rfpData?.data;
+
+  const { data: vendorsData, isLoading, isFetching } = useVendors({});
+  const vendors = vendorsData?.data;
+  
+  const { data: proposalsData,  } = useProposals(id, !!id);
+  const rfpProposals = proposalsData?.data;
+
+  //MUTATION
+  const { mutateAsync: sendRfpToVendors } = useSendRfpToVendors();
+  const { mutateAsync: checkForProposals ,isPending:checkProposalPending} = useCheckProposals();
+
+  const [selectedVendors, setSelectedVendors] = useState<string[]>([]);
 
   if (!rfp) {
     return (
@@ -36,8 +51,6 @@ export default function RFPDetail() {
       </div>
     );
   }
-
-  const rfpProposals = mockProposals.filter((p) => p.rfpId === rfp._id);
 
   const statusBadgeVariant = (status: string) => {
     switch (status) {
@@ -62,7 +75,7 @@ export default function RFPDetail() {
     );
   };
 
-  const handleSendRFP = () => {
+  const handleSendRFP = async () => {
     if (selectedVendors.length === 0) {
       toast({
         title: "No Vendors Selected",
@@ -72,16 +85,49 @@ export default function RFPDetail() {
       return;
     }
 
-    const vendorNames = selectedVendors
-      .map((id) => mockVendors.find((v) => v._id === id)?.name)
-      .filter(Boolean)
-      .join(", ");
+    try {
+      const response = await sendRfpToVendors({
+        vendorIds: selectedVendors,
+        rfpId: rfp?._id,
+      });
 
-    toast({
-      title: "RFP Sent Successfully",
-      description: `RFP has been sent to: ${vendorNames}`,
-    });
+      const vendorNames = selectedVendors
+        .map((id) => vendors.find((v) => v._id === id)?.name)
+        .filter(Boolean)
+        .join(", ");
+
+      toast({
+        title: "RFP Sent Successfully",
+        description: `RFP has been sent to: ${vendorNames}`,
+      });
+
+      setSelectedVendors([]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
+
+  const handleCheckForProposals = async (rfpId: string) => {
+    try {
+      const response = await checkForProposals(rfpId);
+
+      toast({
+        title: "Proposals Checked",
+        description: response?.data?.message,
+        variant: "destructive",
+      });
+    } catch (error) {
+      toast({
+        title: "Something went wrong!",
+        description: "Please select at least one vendor to send the RFP.",
+        variant: "destructive",
+      });
+    }
+  }
 
   return (
     <div className="animate-fade-in">
@@ -112,9 +158,17 @@ export default function RFPDetail() {
             Send to Vendors
           </Button>
         )}
-        {rfp.status !== "draft" && rfpProposals.length > 0 && (
+        {rfp.status !== "draft" && (
+          <Button 
+            disabled={checkProposalPending}
+            variant="accent" onClick={() => handleCheckForProposals(rfp?._id)}>
+            <Send className="mr-2 h-4 w-4" />
+            {checkProposalPending ? "Pending" :"Check For Proposals"}
+          </Button>
+        )}
+        {rfp.status !== "draft" && rfpProposals && rfpProposals?.length > 0 && (
           <Button asChild variant="accent">
-            <Link to={`/compare?rfp=${rfp._id}`}>Compare Proposals</Link>
+            <Link to={`/proposals/${rfp._id}`}>View Proposals</Link>
           </Button>
         )}
       </div>
@@ -205,7 +259,7 @@ export default function RFPDetail() {
           </div>
 
           {/* Proposals Received */}
-          {rfpProposals.length > 0 && (
+          {rfpProposals && rfpProposals?.length > 0 && (
             <div className="rounded-xl border bg-card p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Proposals Received</h2>
@@ -226,29 +280,29 @@ export default function RFPDetail() {
                           <Mail className="h-5 w-5 text-accent" />
                         </div>
                         <div>
-                          <p className="font-medium">{vendor?.name}</p>
+                          <p className="font-medium">{proposal.vendor[0]?.name || "unknown"}</p>
                           <p className="text-sm text-muted-foreground">
                             $
-                            {proposal.structuredData.totalPrice.toLocaleString()}
+                            {proposal?.totalPrice.toLocaleString()}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-right">
                           <p className="text-sm text-muted-foreground">
-                            AI Score
+                            Completeness
                           </p>
                           <p
                             className={cn(
                               "font-semibold",
-                              proposal.aiScore >= 90
+                              proposal.completeness >= 90
                                 ? "text-success"
-                                : proposal.aiScore >= 70
+                                : proposal.completeness >= 70
                                 ? "text-accent"
                                 : "text-warning"
                             )}
                           >
-                            {proposal.aiScore}/100
+                            {proposal.completeness}/100
                           </p>
                         </div>
                         <Badge
@@ -281,17 +335,18 @@ export default function RFPDetail() {
             </p>
 
             <div className="space-y-3">
-              {mockVendors.map((vendor) => (
+              {vendors?.map((vendor: Vendor) => (
                 <label
-                  key={vendor._id}
+                  key={vendor?._id}
                   className={cn(
                     "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                    selectedVendors.includes(vendor._id)
+                    rfp?.selectedVendors.includes(vendor?._id)
                       ? "border-accent bg-accent/5"
                       : "hover:border-muted-foreground/30"
                   )}
                 >
                   <Checkbox
+                    disabled={rfp?.selectedVendors.includes(vendor._id)}
                     checked={selectedVendors.includes(vendor._id)}
                     onCheckedChange={() => handleVendorToggle(vendor._id)}
                   />

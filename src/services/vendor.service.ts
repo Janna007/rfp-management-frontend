@@ -4,33 +4,18 @@ import {
   GeneralApiResponse,
   GeneralApiResponsePagination,
 } from "./axios.service";
-
-export interface IVendor {
-  _id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  notes?: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type QueryObj = {
-  limit?: string;
-  page?: string;
-  search?: string;
-};
+import { QueryObj, Vendor } from "@/types";
 
 /* MUTATIONS */
 const mutations = {
-  createVendor: (data: Partial<IVendor>) => {
-    return api.post<GeneralApiResponse<IVendor>>("/vendor", data);
+  createVendor: (data: Partial<Vendor>) => {
+    return api.post<GeneralApiResponse<Vendor>>("/vendor", data);
   },
-  updateVendor: (data: Partial<IVendor>) => {
-    return api.patch<GeneralApiResponse<IVendor>>(`/vendor/${data?._id}`, data);
+  updateVendor: (data: Partial<Vendor>) => {
+    return api.patch<GeneralApiResponse<Vendor>>(`/vendor/${data?._id}`, data);
   },
   deleteVendor: (vendorId: string) => {
-    return api.delete<GeneralApiResponse<IVendor>>(`/vendor/${vendorId}`);
+    return api.delete<GeneralApiResponse<Vendor>>(`/vendor/${vendorId}`);
   },
 };
 
@@ -40,10 +25,10 @@ const queries = {
     const query = new URLSearchParams(
       queryObj as Record<string, string>
     ).toString();
-    return api.get<GeneralApiResponsePagination<IVendor>>(`/vendor?${query}`);
+    return api.get<GeneralApiResponsePagination<Vendor>>(`/vendor?${query}`);
   },
   getVendorById: (vendorId: string) => {
-    return api.get<GeneralApiResponse<IVendor>>(`/vendor/${vendorId}`);
+    return api.get<GeneralApiResponse<Vendor>>(`/vendor/${vendorId}`);
   },
 };
 
