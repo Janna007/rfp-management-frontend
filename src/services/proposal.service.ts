@@ -11,7 +11,7 @@ const mutations = {
     );
   },
   compareProposals: (rfpId: string) => {
-    return api.post<{ message: string }>(`/proposal/compare/${rfpId}`, {});
+    return api.post<any>(`/proposal/compare/${rfpId}`, {});
   },
 };
 
@@ -21,6 +21,9 @@ const queries = {
     return api.get<GeneralApiResponsePagination<Proposal>>(
       `/proposal/${rfpId}`
     );
+  },
+  getProposals: () => {
+    return api.get<GeneralApiResponsePagination<Proposal>>(`/proposal`);
   },
 };
 
@@ -50,6 +53,14 @@ export const useProposals = (rfpId: string, enabled = true) => {
   return useQuery({
     queryKey: ["proposals", rfpId],
     queryFn: () => queries.getAllProposals(rfpId).then((res) => res.data),
+    enabled: enabled,
+  });
+};
+
+export const useProposalsAll = (enabled = true) => {
+  return useQuery({
+    queryKey: ["proposal"],
+    queryFn: () => queries.getProposals().then((res) => res.data),
     enabled: enabled,
   });
 };

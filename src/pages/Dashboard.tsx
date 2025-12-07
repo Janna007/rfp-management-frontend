@@ -4,12 +4,28 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/common/StatCard";
 import { PageHeader } from "@/components/common/PageHeader";
-import { mockRFPs, mockVendors, mockProposals } from "@/store/mockData";
 import { format } from "date-fns";
+import { useProposalsAll } from "@/services/proposal.service";
+import { useRfps } from "@/services/rfp.service";
+import { useVendors } from "@/services/vendor.service";
 
 export default function Dashboard() {
-  const recentRFPs = mockRFPs.slice(0, 3);
-  const pendingProposals = mockProposals.filter(p => p.status !== "evaluated").length;
+
+  const { data: proposalsData } = useProposalsAll();
+  const rfpProposals = proposalsData?.data;
+
+  const { data: vendorsData } = useVendors({});
+  
+
+  const queryObj={}
+
+  const { data: rfpData, isLoading, isFetching } = useRfps(queryObj);
+  const rfps = rfpData?.data;
+
+  const pendingProposals = rfpProposals?.filter(p => p.status !== "evaluated").length || 0;
+ 
+
+  const recentRFPs = rfps?.slice(0, 3);
 
   const statusBadgeVariant = (status: string) => {
     switch (status) {
@@ -37,21 +53,21 @@ export default function Dashboard() {
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Active RFPs"
-          value={mockRFPs.filter(r => r.status !== "completed").length}
+          value={rfps?.filter(r => r.status !== "completed").length}
           subtitle="Currently in progress"
           icon={FileText}
           variant="default"
         />
         <StatCard
           title="Total Vendors"
-          value={mockVendors.length}
+          value={vendorsData?.total || 0}
           subtitle="In your network"
           icon={Users}
           variant="accent"
         />
         <StatCard
           title="Proposals Received"
-          value={mockProposals.length}
+          value={proposalsData?.data?.length || 0}
           subtitle={`${pendingProposals} pending review`}
           icon={Inbox}
           variant="success"
@@ -78,7 +94,7 @@ export default function Dashboard() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {recentRFPs.map((rfp) => (
+          {recentRFPs&& recentRFPs.length >0 && recentRFPs.map((rfp) => (
             <Link
               key={rfp._id}
               to={`/rfps/${rfp._id}`}
@@ -130,9 +146,9 @@ export default function Dashboard() {
             <Button asChild variant="outline" size="sm">
               <Link to="/vendors">Manage Vendors</Link>
             </Button>
-            <Button asChild variant="outline" size="sm">
+            {/* <Button asChild variant="outline" size="sm">
               <Link to="/proposals">Review Proposals</Link>
-            </Button>
+            </Button> */}
           </div>
         </div>
 

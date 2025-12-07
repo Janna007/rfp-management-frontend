@@ -7,7 +7,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import React from "react";
+
 
 interface ConfirmDialogProps {
   open: boolean;

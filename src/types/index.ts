@@ -67,7 +67,8 @@ export interface Proposal {
   createdAt: string;
   updatedAt: string;
   vendor?:Vendor;
-  rfp:RFP
+  rfp:RFP;
+  isBest:boolean
 }
 
 export interface ChatMessage {

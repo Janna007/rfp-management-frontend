@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { mockVendors, mockProposals } from "@/store/mockData";
 import { format } from "date-fns";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -267,9 +266,7 @@ export default function RFPDetail() {
               </div>
               <div className="space-y-3">
                 {rfpProposals.map((proposal) => {
-                  const vendor = mockVendors.find(
-                    (v) => v._id === proposal.vendorId
-                  );
+                 
                   return (
                     <div
                       key={proposal._id}

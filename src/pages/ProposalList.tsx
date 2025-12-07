@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Mail, Sparkles, ArrowRight, Send } from "lucide-react";
+import { Mail, Sparkles, ArrowRight, Send, GitCompare  } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -40,7 +40,7 @@ export default function ProposalList() {
           variant="accent"
           onClick={() => navigate(`/compare/${id}`)}
         >
-          <Send className="mr-2 h-4 w-4" />
+          <GitCompare  className="mr-2 h-4 w-4" />
           {/* {checkProposalPending ? "Pending" :"Check For Proposals"} */}
           Compare Proposals
         </Button>
@@ -161,7 +161,8 @@ export default function ProposalList() {
                     <div>
                       <span className="text-muted-foreground">Delivery: </span>
                       <span className="font-semibold">
-                        {proposal.deliveryTime}
+                       
+                        {format(new Date( proposal.deliveryTime), "MMM d, yyyy")}
                       </span>
                     </div>
                     <div>
@@ -185,7 +186,7 @@ export default function ProposalList() {
 
                   <div className="mt-4 pt-4 border-t flex justify-end">
                     <Button asChild variant="ghost" size="sm">
-                      <Link to={`/compare?rfp=${proposal.rfpId}`}>
+                      <Link to={`/compare/${id}`}>
                         Compare with others{" "}
                         <ArrowRight className="ml-1 h-4 w-4" />
                       </Link>

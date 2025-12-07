@@ -5,8 +5,6 @@ import {
   FileText,
   Users,
   PlusCircle,
-  Inbox,
-  BarChart3,
   Sparkles,
 } from "lucide-react";
 
@@ -15,8 +13,6 @@ const navItems = [
   { to: "/rfps", icon: FileText, label: "RFPs" },
   { to: "/rfps/create", icon: PlusCircle, label: "Create RFP" },
   { to: "/vendors", icon: Users, label: "Vendors" },
-  // { to: "/proposals", icon: Inbox, label: "Proposals" },
-  // { to: "/compare", icon: BarChart3, label: "Compare" },
 ];
 
 export function Sidebar() {
@@ -39,8 +35,8 @@ export function Sidebar() {
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
-            const isActive = location.pathname === item.to || 
-              (item.to !== "/" && location.pathname.startsWith(item.to));
+            const isActive = location.pathname === item.to 
+            // || (item.to !== "/" && location.pathname.startsWith(item.to));
             
             return (
               <NavLink
